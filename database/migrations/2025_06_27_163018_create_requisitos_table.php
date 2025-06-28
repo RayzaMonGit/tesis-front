@@ -12,7 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('requisitos', function (Blueprint $table) {
-            $table->bigInteger('id')->primary();
+            $table->id();
             $table->bigInteger('id_convocatoria')->nullable();
             $table->text('descripcion')->nullable();
             $table->timestamps();
