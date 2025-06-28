@@ -68,7 +68,7 @@ class PostulacionController extends Controller
 
         // Aquí llamamos a n8n:
     try {
-        \Illuminate\Support\Facades\Http::post('https://primary-production-a98a1.up.railway.app/webhook/nueva-postulacion', [
+        \Illuminate\Support\Facades\Http::post('https://primary-production-a98a1.up.railway.app/webhook-test/nueva-postulacion', [
             'postulacion_id' => $postulacion->id
         ]);
     } catch (\Exception $e) {
