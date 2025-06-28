@@ -2,6 +2,9 @@
 
 namespace App\Http\Controllers\Postulacion;
 
+use Illuminate\Support\Facades\Http;
+
+
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 
@@ -62,6 +65,16 @@ class PostulacionController extends Controller
     DB::beginTransaction();
     try {
         $postulacion = Postulacion::create($validated);
+
+        // Aquí llamamos a n8n:
+    try {
+        \Illuminate\Support\Facades\Http::post('https://primary-production-a98a1.up.railway.app/webhook/nueva-postulacion', [
+            'postulacion_id' => $postulacion->id
+        ]);
+    } catch (\Exception $e) {
+        \Illuminate\Support\Facades\Log::error('Error al notificar a n8n: ' . $e->getMessage());
+    }
+
         DB::commit();
         return response()->json([
             'message' => 'Formulario creado correctamente.',
