@@ -66,6 +66,7 @@ class PostulacionController extends Controller
     try {
         $postulacion = Postulacion::create($validated);
 
+        DB::commit();
         // Aquí llamamos a n8n:
     try {
         \Illuminate\Support\Facades\Http::post('https://primary-production-a98a1.up.railway.app/webhook-test/nueva-postulacion', [
@@ -75,7 +76,6 @@ class PostulacionController extends Controller
         \Illuminate\Support\Facades\Log::error('Error al notificar a n8n: ' . $e->getMessage());
     }
 
-        DB::commit();
         return response()->json([
             'message' => 'Formulario creado correctamente.',
             'postulacion_id' => $postulacion->id
