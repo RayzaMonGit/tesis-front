@@ -17,13 +17,25 @@ use App\Http\Controllers\Evaluacion\EvaluController;
 use App\Http\Controllers\Evaluacion\EvaluDocumentoController;
 use App\Http\Controllers\Evaluacion\EvaluacionRequisitoController;
 use App\Http\Controllers\Convocatorias\ConvocatoriaAuditController;
+use App\Http\Controllers\CodigoVerificacionController;
+
+
 
 
 //use App\Http\Controllers\Formulario\FormularioController;
 use App\Http\Controllers\Formulario\EvaluacionController;
 //para que se registre un usuario sin estar autentificado
-Route::resource("register",RegisterController::class);
+
+Route::post('registerpos', [RegisterController::class, 'registerpos']);
+//reguistrar solo el usuario
+Route::post('/register-user', [RegisterController::class, 'registerUser']);
 //Route::post("register/{id}",[RegisterController::class,"update"]);
+ // Rutas para el Código de Verificación
+    Route::post('verificacion/enviar', [CodigoVerificacionController::class, 'enviar']);
+    Route::post('verificacion/verificar', [CodigoVerificacionController::class, 'verificar']);
+
+
+
  
 Route::group([
    // 'middleware' => 'api',
@@ -141,4 +153,5 @@ Route::get('/postulantes/{id}/convocatorias', [EvaluController::class, 'postulan
     Route::delete('evaluacion-requisitos/{id}', [EvaluacionRequisitoController::class, 'destroy']);
     Route::get('postulaciones/{postulacionId}/evaluaciones/mi-evaluacion', [EvaluController::class, 'miEvaluacion']);
 
+   
 });

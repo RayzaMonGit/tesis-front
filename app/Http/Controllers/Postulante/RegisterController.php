@@ -23,6 +23,7 @@ use App\Http\Controllers\AuthController;
 use App\Mail\VerificationCodeMail;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Auth;
 
 
 
@@ -51,6 +52,60 @@ class RegisterController extends Controller
     return redirect()->route('verification.notice');
 }
 
+public function registerUser(Request $request)
+{
+    $validator = Validator::make($request->all(), [
+        'email' => 'required|email|unique:users,email',
+        'password' => 'required|min:8',
+    ]);
+
+    if ($validator->fails()) {
+        return response()->json([
+            'success' => false,
+            'errors' => $validator->errors(),
+        ], 422);
+    }
+
+    $user = User::create([
+        'email' => $request->email,
+        'password' => bcrypt($request->password),
+    ]);
+
+    // Buscar el rol de postulante
+    $rolPostulante = Role::where([
+        ['name', '=', 'Postulante'],
+        ['guard_name', '=', 'api']
+    ])->first();
+
+    if (!$rolPostulante) {
+        return response()->json(['message' => 'Rol postulante no encontrado'], 500);
+    }
+
+    // Asignar el rol y guardar en la columna role_id si la estás usando
+    $user->assignRole($rolPostulante);
+    $user->role_id = $rolPostulante->id;
+    $user->save();
+/*
+    // Cargar roles y permisos en el usuario antes de devolverlo
+$user->load('roles');
+$user->role = $user->roles->first();
+$user->permissions = $user->getAllPermissions()->pluck('name');;
+
+// Generar token (solo una vez, al final)
+$token = Auth::guard('api')->fromUser($user);
+
+return response()->json([
+    'success' => true,
+    'user' => $user,
+    'access_token' => $token,
+]);*/
+$token = auth()->login($user);
+return response()->json([
+    'success' => true,
+    'user' => $user->load('roles'),
+]);
+}
+
     /**
      * Display a listing of the resource.
      */
@@ -62,61 +117,48 @@ class RegisterController extends Controller
     /**
      * Store a newly created resource in storage.
      */
-    public function store(Request $request)
+    public function registerpos(Request $request)
     {
         // Guardar el password plano para login
-            $plainPassword = $request->password;
+           
 
             $validator = Validator::make($request->all(), [
-            // Datos del usuario
-            'name' => 'required|string|max:100',
-            'surname' => 'required|string|max:100',
-            'email' => 'required|email|unique:users,email',
-            'password' => 'required|min:6',
-            'telefono' => 'required|string|max:20',
-            'gender' => 'required|string|in:M,F,O',
-            'tipo_doc' => 'required|string',
-            'n_doc' => 'required|string|unique:users,n_doc',
-            'avatar' => 'nullable|image|max:2048',
-    
-            // Datos del postulante
-            'grado_academico' => 'required|string|max:100',
-            'experiencia_años' => 'required|integer|min:0',
-            //'convocatoria_id' => 'nullable|exists:convocatorias,id',
-            'fecha_nacimiento' => 'nullable|date',
-        ]);
-    
-        if ($validator->fails()) {
-            return response()->json([
-                'message' => 'Error de validación',
-                'errors' => $validator->errors(),
-            ], 422);
-        }
-    
-        // Subir imagen si existe
-        if ($request->hasFile("imagen")) {
-            $path = Storage::putFile("users", $request->file("imagen"));
-            $request->request->add(["avatar" => $path]);
-        }
-    
-        // Encriptar password
-        if ($request->password) {
-            $request->request->add(["password" => bcrypt($request->password)]);
-        }
-    
-        // Asignar role_id automáticamente (por nombre)
-        $rolPostulante = Role::where('name', 'Postulante')->first();
-        if (!$rolPostulante) {
-            return response()->json(['message' => 'Rol postulante no encontrado'], 500);
-        }
-        $request->request->add(["role_id" => $rolPostulante->id]);
-    
-        // Crear usuario y rol
-        $user = User::create($request->only([
-            'name', 'surname', 'email', 'password', 'telefono', 'gender', 'tipo_doc', 'n_doc', 'avatar', 'role_id'
-        ]));
-        $role=Role::findOrFail($rolPostulante->id);
-        $user->assignRole($role);
+        'user_id' => 'required|exists:users,id',
+        'name' => 'required|string|max:100',
+        'surname' => 'required|string|max:100',
+        'telefono' => 'required|string|max:20',
+        'gender' => 'required|string|in:M,F,O',
+        'tipo_doc' => 'required|string',
+        'n_doc' => 'required|string|unique:users,n_doc',
+        'avatar' => 'nullable|image|max:2048',
+        'grado_academico' => 'required|string|max:100',
+        'experiencia_años' => 'required|integer|min:0',
+        'fecha_nacimiento' => 'nullable|date',
+    ]);
+
+    if ($validator->fails()) {
+        return response()->json([
+            'message' => 'Error de validación',
+            'errors' => $validator->errors(),
+        ], 422);
+    }
+
+    // Subir imagen si existe
+    if ($request->hasFile("avatar")) {
+        $path = Storage::putFile("users", $request->file("avatar"));
+        $request->merge(["avatar" => $path]);
+    }
+    // Actualizar usuario existente
+    $user = User::findOrFail($request->user_id);
+    $user->update([
+        'name' => $request->name,
+        'surname' => $request->surname,
+        'telefono' => $request->telefono,
+        'gender' => $request->gender,
+        'tipo_doc' => $request->tipo_doc,
+        'n_doc' => $request->n_doc,
+        'avatar' => $request->avatar ?? $user->avatar,
+    ]);
     
         // Crear postulante
         Postulante::create([
@@ -127,18 +169,59 @@ class RegisterController extends Controller
             //'convocatoria_id' => $request->convocatoria_id,
         ]);
     
+       
         
-        $token = auth('api')->attempt([
-            'email' => $user->email,
-            'password' => $plainPassword,
-        ]);
-        
-        $authController = new AuthController();
-        
-        return $authController->respondWithToken($token);
+    // Asignar rol automáticamente si no lo tiene
+    $rolPostulante = Role::where('name', 'Postulante')->first();
+if (!$rolPostulante) {
+    return response()->json(['message' => 'Rol postulante no encontrado'], 500);
+}
+if (!$user->hasRole($rolPostulante->name)) {
+    $user->assignRole($rolPostulante);
+}
+/*
+// Carga roles, asigna role y permisos
+$user->load('roles');
+$user->role = $user->roles->first();
+$user->permissions = $user->getAllPermissions()->pluck('name');;
+
+// Genera token después de tener usuario actualizado
+$token = Auth::guard('api')->fromUser($user);
+
+return response()->json([
+    'success' => true,
+    'message' => 'Datos de postulante guardados correctamente',
+    'access_token' => $token,
+    'user' => $user,
+]);*/
+$token = auth()->login($user);
+return $this->respondWithToken($token);
         
     }
+public function respondWithToken($token)
+    {
+    /*El getallpermissions devuelve todos lo permisos que tiene asignado
+    un usuario a partir de su rol */
+    $permissions= auth('api')->user()->getAllPermissions()->map(function($permission){
+        return $permission->name;
 
+    });
+        return response()->json([
+            'access_token' => $token,
+            'token_type' => 'bearer',
+            'expires_in' => auth()->factory()->getTTL() * 60,
+            "user" => [
+                "id"=> auth('api')->user()->id,
+                "name"=> auth('api')->user()->name,
+                "surname"=>auth('api')->user()->surname,
+                "email"=>auth('api')->user()->email,
+                "avatar"=>auth('api')->user()->avatar ? env("APP_URL")."storage/".auth('api')->user()->avatar : null,
+                "role"=> auth('api')->user()->role,
+                //"roles" => $user->roles->pluck('name'), 
+                "permissions"=> $permissions,
+            ]
+        ]);
+    }
     /**
      * Display the specified resource.
      */
