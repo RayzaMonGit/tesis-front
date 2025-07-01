@@ -20,11 +20,20 @@ export default {
     };
   },
   mounted() {
-    // Simulación de llamada a API para obtener la cantidad de postulaciones
-    setTimeout(() => {
-      // Supón que recibes este dato de una API
-      this.convocatoria.postulaciones = 42;
-    }, 1000);
+   // Refresca el usuario desde localStorage (ejemplo)
+  const user = JSON.parse(localStorage.getItem('user'))
+  if (!user) {
+    // Si no hay usuario, puedes redirigir al login o mostrar mensaje
+    this.$router.push('/login')
+  } else {
+    // Si quieres, puedes guardar el usuario en data o en una variable global
+    this.user = user
+  }
+
+  // Simulación de llamada a API para obtener la cantidad de postulaciones
+  setTimeout(() => {
+    this.convocatoria.postulaciones = 42;
+  }, 1000);
   },
 };
 </script>
