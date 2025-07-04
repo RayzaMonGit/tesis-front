@@ -418,8 +418,8 @@ definePage({
             <th>#</th>
             <th>Nombre</th>
             <th>Email</th>
-            <th>Nota preliminar</th>
-            <th>Nota final</th>
+            <th>Calificación</th>
+            
           </tr>
         </thead>
         <tbody>
@@ -428,7 +428,6 @@ definePage({
             <td>{{ post.usuario?.name }} {{ post.usuario?.surname }}</td>
             <td>{{ post.usuario?.email }}</td>
             <td>{{ post.nota_preliminar ?? '-' }}</td>
-            <td>{{ post.nota_final ?? '-' }}</td>
           </tr>
         </tbody>
       </VTable>
