@@ -229,24 +229,48 @@ public function updateRequisitos(Request $request, $id)
     return ConvocatoriaResource::collection($convocatorias);
 }
 
+//todas las convocatorias
+
+public function all(Request $request)
+{
+    $search = $request->get("search");
+    $estado = $request->get("estado");
+    $area = $request->get("area");
+
+    $convocatorias = Convocatoria::with(['requisitos', 'evaluadores', 'formulario'])
+        ->when($area, function ($q) use ($area) {
+            $q->where("area", $area);
+        })
+        ->when($estado, function ($q) use ($estado) {
+            $q->where("estado", $estado);
+        })
+        ->when($search, function ($q) use ($search) {
+            $q->where(function($query) use ($search) {
+                $query->where("titulo", "ilike", "%{$search}%")
+                      ->orWhereHas("requisitos", function($q) use ($search){
+                          $q->where("descripcion", "ilike", "%{$search}%");
+                      });
+            });
+        })
+        ->orderBy("id", "desc")
+        ->get();
+
+    return ConvocatoriaResource::collection($convocatorias);
+}
+
 
     /**
      * Store a newly created resource in storage.
      */
     public function store(Request $request)
     {
-        // Iniciar transacción para garantizar que se guarden tanto la convocatoria como sus requisitos
         DB::beginTransaction();
-        
         try {
             // Procesar documento
             $documentoPath = null;
             if($request->hasFile("documento")){
-                /*$path = $request->file("documento")->store("convocatorias", "public");
-                $request->request->add(["documento" => $path]);*/
                 $documentoPath = $request->file("documento")->store("convocatorias", "public");
             }
-            
             // Crear la convocatoria
             $convocatoria = Convocatoria::create([
                 'titulo' => $request->titulo,
@@ -260,18 +284,14 @@ public function updateRequisitos(Request $request, $id)
                 'documento' => $documentoPath,
                 'formulario_id' => $request->formulario_id,
             ]);
-
             // sincroniza los requisitos de ley si se enviaron desde el frontend
                 if ($request->has('requisitos_ley_ids')) {
                     $convocatoria->requisitosLey()->sync($request->requisitos_ley_ids);
                 }
-                            
-            // Asume que requisitos_ley_ids es un array de IDs seleccionados, como [1, 3, 5].
+            // Procesar requisitos obligatorios
             if ($request->has('requisitos_ley_ids')) {
                 $convocatoria->requisitosLey()->sync($request->requisitos_ley_ids);
             }            
-            
-            
             // Procesar requisitos personalizados
             if ($request->has('requisitos_personalizados')) {
                 $requisitosPersonalizados = json_decode($request->requisitos_personalizados, true);
@@ -284,22 +304,21 @@ public function updateRequisitos(Request $request, $id)
                     ]);
                 }
             }
-
             // Auditoría de creación
-\App\Models\Convocatorias\ConvocatoriaAudit::create([
-    'convocatoria_id' => $convocatoria->id,
-    'user_id' => auth()->id(),
-    'accion' => 'create',
-    'cambios' => [
-        'campos' => $convocatoria->toArray(),
-        'requisitos_personalizados' => $request->has('requisitos_personalizados')
-            ? json_decode($request->requisitos_personalizados, true)
-            : [],
-        'requisitos_ley_ids' => $request->has('requisitos_ley_ids')
-            ? $request->requisitos_ley_ids
-            : [],
-    ],
-]);
+            \App\Models\Convocatorias\ConvocatoriaAudit::create([
+                'convocatoria_id' => $convocatoria->id,
+                'user_id' => auth()->id(),
+                'accion' => 'create',
+                'cambios' => [
+                    'campos' => $convocatoria->toArray(),
+                    'requisitos_personalizados' => $request->has('requisitos_personalizados')
+                        ? json_decode($request->requisitos_personalizados, true)
+                        : [],
+                    'requisitos_ley_ids' => $request->has('requisitos_ley_ids')
+                        ? $request->requisitos_ley_ids
+                        : [],
+                ],
+            ]);
             
             DB::commit();
             

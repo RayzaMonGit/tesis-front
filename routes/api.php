@@ -56,6 +56,7 @@ Route::group([
     Route::post("staffs/{id}",[StaffController::class,"update"]);
     //para e index de staff
     Route::resource("staffs",StaffController::class);
+    Route::get('convocatorias/all', [ConvocatoriaController::class, 'all']);
 
     Route::post("convocatorias/{id}", [ConvocatoriaController::class, "update"]); // método POST para actualizar con archivos
     Route::resource("convocatorias", ConvocatoriaController::class);//esto en teoria ya estaba bien
@@ -104,7 +105,7 @@ Route::post('postulaciones/{id}', [PostulacionController::class, 'update']);
 Route::delete('postulaciones/{id}', [PostulacionController::class, 'destroy']);
 // Obtener postulaciones por postulante
 Route::get('postulaciones/postulante/{postulanteId}', [PostulacionController::class, 'porPostulante']);
-//nosecreoqaunnlovibien
+
 Route::get('convocatorias/{convocatoria}/postulaciones', [PostulacionController::class, 'porConvocatoria']);
 
 Route::post('postulacion-documentos', [PostulacionDocumentoController::class, 'store']);
